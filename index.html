@@ -2,7 +2,7 @@
 
 <html>
 <head>
-  <title>Peta Zona</title>
+  <title>Dashboard Peta Zona</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -11,7 +11,13 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-  <!-- PapaParse (CSV reader) -->
+  <!-- Marker Cluster -->
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+  <!-- PapaParse -->
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
@@ -24,7 +30,7 @@
       background: white;
       padding: 10px;
       z-index: 1000;
-      border-radius: 8px;
+      border-radius: 10px;
     }
   </style>
 
@@ -33,24 +39,28 @@
 <body>
 
 <div class="control">
-  <b>Filter Zona</b><br>
-  <button onclick="filterZona('all')">Semua</button>
-  <button onclick="filterZona('merah')">Merah</button>
-  <button onclick="filterZona('kuning')">Kuning</button>
-  <button onclick="filterZona('hijau')">Hijau</button>
+  <b>Zona</b><br>
+  <button onclick="setZona('all')">Semua</button>
+  <button onclick="setZona('merah')">Merah</button>
+  <button onclick="setZona('kuning')">Kuning</button>
+  <button onclick="setZona('hijau')">Hijau</button>
+
+<br><br> <b>Kecamatan</b><br> <select id="kecamatanFilter" onchange="filterData()"> <option value="all">Semua</option> </select>
+
 </div>
 
 <div id="map"></div>
 
 <script>
-  var map = L.map('map').setView([1.0, 103.5], 8);
+  var map = L.map('map').setView([1.0, 103.5], 9);
 
- L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
 
-  var markers = [];
+  var markers = L.markerClusterGroup();
   var allData = [];
+  var currentZona = "all";
 
   function getColor(zona) {
     zona = zona.toLowerCase();
@@ -66,26 +76,57 @@
       header: true,
       complete: function(results) {
         allData = results.data;
-        showMarkers(allData);
+        populateKecamatan();
+        filterData();
       }
     });
   }
 
+  function populateKecamatan() {
+    let select = document.getElementById("kecamatanFilter");
+    let kecList = [...new Set(allData.map(d => d.kecamatan))];
+
+    kecList.forEach(kec => {
+      let opt = document.createElement("option");
+      opt.value = kec;
+      opt.text = kec;
+      select.appendChild(opt);
+    });
+  }
+
+  function setZona(z) {
+    currentZona = z;
+    filterData();
+  }
+
+  function filterData() {
+    let kec = document.getElementById("kecamatanFilter").value;
+
+    let filtered = allData.filter(d => {
+
+      let zonaMatch = currentZona === "all" || d.Zona.toLowerCase().includes(currentZona);
+      let kecMatch = kec === "all" || d.kecamatan === kec;
+
+      return zonaMatch && kecMatch;
+    });
+
+    showMarkers(filtered);
+  }
+
   function showMarkers(data) {
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
+    markers.clearLayers();
 
     data.forEach(row => {
-	console.log(row.latitude, row.longitude); // ← TAMBAHKAN DI SINI
+
       if (!row.latitude || !row.longitude) return;
 
-      var marker = L.circleMarker([
-      parseFloat(row.latitude),
-      parseFloat(row.longitude)
+      let marker = L.circleMarker([
+        parseFloat(row.latitude),
+        parseFloat(row.longitude)
       ], {
         color: getColor(row.Zona),
         radius: 6
-      }).addTo(map);
+      });
 
       marker.bindPopup(
         "<b>Desa:</b> " + row.desa + "<br>" +
@@ -93,17 +134,10 @@
         "<b>Zona:</b> " + row.Zona
       );
 
-      markers.push(marker);
+      markers.addLayer(marker);
     });
-  }
 
-  function filterZona(zona) {
-    if (zona === "all") {
-      showMarkers(allData);
-    } else {
-      const filtered = allData.filter(d => d.Zona.toLowerCase().includes(zona));
-      showMarkers(filtered);
-    }
+    map.addLayer(markers);
   }
 
   loadData();
