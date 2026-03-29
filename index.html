@@ -45,8 +45,22 @@
   <button onclick="setZona('kuning')">Kuning</button>
   <button onclick="setZona('hijau')">Hijau</button>
 
-<br><br> <b>Kecamatan</b><br> <select id="kecamatanFilter" onchange="filterData()"> <option value="all">Semua</option> </select>
+  <br><br>
+  <b>Kecamatan</b><br>
+  <select id="kecamatanFilter" onchange="filterData()">
+    <option value="all">Semua</option>
+  </select>
 
+  <br><br>
+  <div id="infoCount"><b>Total:</b> 0</div>
+</div>
+
+<!-- ✅ TAMBAHKAN DI SINI (TEPAT DI BAWAH CONTROL) -->
+<div class="control" style="top:140px;">
+  <b>Legenda</b><br>
+  🔴 Merah<br>
+  🟠 Kuning<br>
+  🟢 Hijau
 </div>
 
 <div id="map"></div>
@@ -114,6 +128,8 @@
   }
 
   function showMarkers(data) {
+    document.getElementById("infoCount").innerHTML =
+  "<b>Total:</b> " + data.length;
     markers.clearLayers();
 
     data.forEach(row => {
@@ -128,15 +144,29 @@
         radius: 6
       });
 
-      let popup = "<div style='font-size:12px'>";
+   let popup = `
+<div style="
+  font-family: Arial;
+  font-size: 13px;
+  line-height: 1.5;
+  min-width:200px;
+">
+  <b style="font-size:14px;">${row.desa}</b><br>
+  <span style="color:gray">${row.kecamatan}</span>
+  <hr>
 
-      for (let key in row) {
-      if (row[key]) {
-       popup += "<b>" + key + ":</b> " + row[key] + "<br>";
-      }
-    }
+  <b>Zona:</b> <span style="color:${getColor(row.Zona)}">${row.Zona}</span><br>
+`;
 
-       popup += "</div>";
+for (let key in row) {
+  if (!["desa","kecamatan","Zona","latitude","longitude"].includes(key)) {
+    popup += `<b>${key}:</b> ${row[key]}<br>`;
+  }
+}
+
+popup += "</div>";
+
+marker.bindPopup(popup);
 
        marker.bindPopup(popup);
       );
