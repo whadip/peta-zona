@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Peta Zona</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Leaflet -->
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- PapaParse (CSV reader) -->
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+
+  <style>
+    #map { height: 100vh; }
+    .control {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      z-index: 1000;
+      border-radius: 8px;
+    }
+  </style>
+
+</head>
+
+<body>
+
+<div class="control">
+  <b>Filter Zona</b><br>
+  <button onclick="filterZona('all')">Semua</button>
+  <button onclick="filterZona('merah')">Merah</button>
+  <button onclick="filterZona('kuning')">Kuning</button>
+  <button onclick="filterZona('hijau')">Hijau</button>
+</div>
+
+<div id="map"></div>
+
+<script>
+  var map = L.map('map').setView([1.0, 103.5], 8);
+
+ L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+  var markers = [];
+  var allData = [];
+
+  function getColor(zona) {
+    zona = zona.toLowerCase();
+    if (zona.includes("merah")) return "red";
+    if (zona.includes("kuning")) return "orange";
+    if (zona.includes("hijau")) return "green";
+    return "gray";
+  }
+
+  function loadData() {
+    Papa.parse("./data.csv", {
+      download: true,
+      header: true,
+      complete: function(results) {
+        allData = results.data;
+        showMarkers(allData);
+      }
+    });
+  }
+
+  function showMarkers(data) {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+
+    data.forEach(row => {
+	console.log(row.latitude, row.longitude); // ← TAMBAHKAN DI SINI
+      if (!row.latitude || !row.longitude) return;
+
+      var marker = L.circleMarker([
+      parseFloat(row.latitude),
+      parseFloat(row.longitude)
+      ], {
+        color: getColor(row.Zona),
+        radius: 6
+      }).addTo(map);
+
+      marker.bindPopup(
+        "<b>Desa:</b> " + row.desa + "<br>" +
+        "<b>Kecamatan:</b> " + row.kecamatan + "<br>" +
+        "<b>Zona:</b> " + row.Zona
+      );
+
+      markers.push(marker);
+    });
+  }
+
+  function filterZona(zona) {
+    if (zona === "all") {
+      showMarkers(allData);
+    } else {
+      const filtered = allData.filter(d => d.Zona.toLowerCase().includes(zona));
+      showMarkers(filtered);
+    }
+  }
+
+  loadData();
+</script>
+
+</body>
+</html>
