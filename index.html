@@ -128,10 +128,17 @@
         radius: 6
       });
 
-      marker.bindPopup(
-        "<b>Desa:</b> " + row.desa + "<br>" +
-        "<b>Kecamatan:</b> " + row.kecamatan + "<br>" +
-        "<b>Zona:</b> " + row.Zona
+      let popup = "<div style='font-size:12px'>";
+
+      for (let key in row) {
+      if (row[key]) {
+       popup += "<b>" + key + ":</b> " + row[key] + "<br>";
+      }
+    }
+
+       popup += "</div>";
+
+       marker.bindPopup(popup);
       );
 
       markers.addLayer(marker);
