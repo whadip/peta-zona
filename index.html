@@ -1,30 +1,27 @@
 <!DOCTYPE html>
-
 <html>
 <head>
   <title>Dashboard Zona PKS</title>
   <meta charset="utf-8">
 
   <!-- Google Maps -->
-
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCiM9i0KJeHPbXxyvryiN6mJ2JrJQtcvOQ"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
 
   <!-- Chart -->
-
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- CSV -->
-
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
   <style>
     body { margin:0; font-family:Arial; }
 
-    #map { height: 70vh; }
+    #map { height: 65vh; }
 
     .topbar {
       display:flex;
-      gap:20px;
+      align-items:center;
+      gap:15px;
       padding:10px;
       background:#f5f5f5;
       flex-wrap:wrap;
@@ -36,23 +33,42 @@
       border-radius:10px;
       box-shadow:0 2px 6px rgba(0,0,0,0.1);
     }
-  </style>
 
+    .box canvas {
+      width:220px !important;
+      height:150px !important;
+    }
+
+    .kpi {
+      min-width:150px;
+    }
+
+  </style>
 </head>
 
 <body>
 
 <div class="topbar">
 
-  <div class="box">
+  <!-- KPI -->
+  <div class="box kpi">
     <b>KPI</b><br>
     Total: <span id="totalSuara">0</span><br>
     Target: <span id="totalTarget">0</span><br>
     Gap: <span id="totalGap">0</span>
   </div>
 
-<canvas id="chartZona" width="200"></canvas> <canvas id="chartKecamatan" width="300"></canvas>
+  <!-- PIE -->
+  <div class="box">
+    <canvas id="chartZona"></canvas>
+  </div>
 
+  <!-- BAR -->
+  <div class="box">
+    <canvas id="chartKecamatan"></canvas>
+  </div>
+
+  <!-- NAV -->
   <div class="box">
     <button onclick="showKecamatan()">🏠 Kecamatan</button><br><br>
     <button onclick="back()">⬅️ Back</button>
@@ -96,6 +112,7 @@ function clearMarkers(){
   markers=[];
 }
 
+// ================= ANALYTICS =================
 function calculateAnalytics(data){
   let total=0,target=0,gap=0;
   let zona={merah:0,kuning:0,hijau:0};
@@ -112,27 +129,45 @@ function calculateAnalytics(data){
     kec[r.kecamatan]=(kec[r.kecamatan]||0)+Number(r.Suara_PKS||0);
   });
 
-  totalSuara.innerText=total;
-  totalTarget.innerText=target;
-  totalGap.innerText=gap;
+  document.getElementById("totalSuara").innerText=total;
+  document.getElementById("totalTarget").innerText=target;
+  document.getElementById("totalGap").innerText=gap;
 
-  new Chart(chartZona,{
+  // PIE
+  new Chart(document.getElementById("chartZona"),{
     type:"pie",
     data:{
       labels:["Merah","Kuning","Hijau"],
-      datasets:[{data:[zona.merah,zona.kuning,zona.hijau],
-      backgroundColor:["red","orange","green"]}]
+      datasets:[{
+        data:[zona.merah,zona.kuning,zona.hijau],
+        backgroundColor:["red","orange","green"]
+      }]
+    },
+    options:{
+      responsive:false,
+      maintainAspectRatio:false
     }
   });
 
-  new Chart(chartKecamatan,{
+  // BAR
+  new Chart(document.getElementById("chartKecamatan"),{
     type:"bar",
     data:{
       labels:Object.keys(kec),
-      datasets:[{label:"PKS",data:Object.values(kec)}]
+      datasets:[{
+        label:"PKS",
+        data:Object.values(kec),
+        backgroundColor:"#4e79a7"
+      }]
+    },
+    options:{
+      responsive:false,
+      maintainAspectRatio:false
     }
   });
 }
+
+// ================= MAP LEVEL =================
 
 // LEVEL 1
 function showKecamatan(){
@@ -227,6 +262,7 @@ function showTPS(kec,desa){
   });
 }
 
+// NAV
 function back(){
   if(level==="tps") showDesa(currentKec);
   else if(level==="desa") showKecamatan();
