@@ -2,37 +2,39 @@
 
 <html>
 <head>
-  <title>Dashboard Peta Zona</title>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Zona PKS</title>
+  <meta charset="utf-8">
 
-  <!-- Leaflet -->
+  <!-- Google Maps -->
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCiM9i0KJeHPbXxyvryiN6mJ2JrJQtcvOQ"></script>
 
-  <!-- Marker Cluster -->
+  <!-- Chart -->
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
-  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- PapaParse -->
+  <!-- CSV -->
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
   <style>
-    #map { height: 100vh; }
+    body { margin:0; font-family:Arial; }
 
-    .control {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: white;
-      padding: 12px;
-      z-index: 1000;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    #map { height: 70vh; }
+
+    .topbar {
+      display:flex;
+      gap:20px;
+      padding:10px;
+      background:#f5f5f5;
+      flex-wrap:wrap;
+    }
+
+    .box {
+      background:white;
+      padding:10px;
+      border-radius:10px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
     }
   </style>
 
@@ -40,135 +42,198 @@
 
 <body>
 
-<div class="control">
-  <b>Zona</b><br>
-  <button onclick="setZona('all')">Semua</button>
-  <button onclick="setZona('merah')">Merah</button>
-  <button onclick="setZona('kuning')">Kuning</button>
-  <button onclick="setZona('hijau')">Hijau</button>
+<div class="topbar">
 
-<br><br> <b>Kecamatan</b><br> <select id="kecamatanFilter" onchange="filterData()"> <option value="all">Semua</option> </select>
+  <div class="box">
+    <b>KPI</b><br>
+    Total: <span id="totalSuara">0</span><br>
+    Target: <span id="totalTarget">0</span><br>
+    Gap: <span id="totalGap">0</span>
+  </div>
 
-<br><br>
+<canvas id="chartZona" width="200"></canvas> <canvas id="chartKecamatan" width="300"></canvas>
 
-  <div id="infoCount"><b>Total:</b> 0</div>
-</div>
+  <div class="box">
+    <button onclick="showKecamatan()">🏠 Kecamatan</button><br><br>
+    <button onclick="back()">⬅️ Back</button>
+  </div>
 
-<div class="control" style="top:140px;">
-  <b>Legenda</b><br>
-  🔴 Merah<br>
-  🟠 Kuning<br>
-  🟢 Hijau
 </div>
 
 <div id="map"></div>
 
 <script>
-  var map = L.map('map').setView([1.0, 103.5], 9);
+let map;
+let markers = [];
+let allData = [];
+let currentKec = null;
+let currentDesa = null;
+let level = "kecamatan";
 
-  L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
-
-  var markers = L.markerClusterGroup();
-  var allData = [];
-  var currentZona = "all";
-
-  function getColor(zona) {
-    zona = String(zona).toLowerCase();
-    if (zona.includes("merah")) return "red";
-    if (zona.includes("kuning")) return "orange";
-    if (zona.includes("hijau")) return "green";
-    return "gray";
-  }
-
-  function loadData() {
-    Papa.parse("./data.csv", {
-      download: true,
-      header: true,
-      complete: function(results) {
-        allData = results.data;
-        populateKecamatan();
-        filterData();
-      }
-    });
-  }
-
-  function populateKecamatan() {
-    let select = document.getElementById("kecamatanFilter");
-    let kecList = [...new Set(allData.map(d => d.kecamatan))];
-
-    kecList.forEach(kec => {
-      let opt = document.createElement("option");
-      opt.value = kec;
-      opt.text = kec;
-      select.appendChild(opt);
-    });
-  }
-
-  function setZona(z) {
-    currentZona = z;
-    filterData();
-  }
-
-  function filterData() {
-    let kec = document.getElementById("kecamatanFilter").value;
-
-    let filtered = allData.filter(d => {
-      let zonaMatch = currentZona === "all" || String(d.Zona).toLowerCase().includes(currentZona);
-      let kecMatch = kec === "all" || d.kecamatan === kec;
-      return zonaMatch && kecMatch;
-    });
-
-    showMarkers(filtered);
-  }
-
-  function showMarkers(data) {
-    markers.clearLayers();
-
-    document.getElementById("infoCount").innerHTML =
-      "<b>Total:</b> " + data.length;
-
-    data.forEach(row => {
-
-      if (!row.latitude || !row.longitude) return;
-
-      let marker = L.circleMarker([
-        parseFloat(row.latitude),
-        parseFloat(row.longitude)
-      ], {
-        color: getColor(row.Zona),
-        radius: 6
-      });
-
-      // ✅ POPUP FIX (DI DALAM LOOP)
-      let popup = `
-      <div style="font-family: Arial; font-size: 13px;">
-        <b style="font-size:14px;">${row.desa}</b><br>
-        <span style="color:gray">${row.kecamatan}</span>
-        <hr>
-        <b>Zona:</b> ${row.Zona}<br>
-      `;
-
-      for (let key in row) {
-        if (!["desa","kecamatan","Zona","latitude","longitude"].includes(key)) {
-          popup += `<b>${key}:</b> ${row[key]}<br>`;
-        }
-      }
-
-      popup += "</div>";
-
-      marker.bindPopup(popup);
-
-      markers.addLayer(marker);
-    });
-
-    map.addLayer(markers);
-  }
+function initMap(){
+  map = new google.maps.Map(document.getElementById("map"), {
+    zoom: 9,
+    center: { lat: 1.0, lng: 103.5 }
+  });
 
   loadData();
+}
+
+function loadData(){
+  Papa.parse("./data.csv", {
+    download:true,
+    header:true,
+    complete:(res)=>{
+      allData = res.data;
+      calculateAnalytics(allData);
+      showKecamatan();
+    }
+  });
+}
+
+function clearMarkers(){
+  markers.forEach(m=>m.setMap(null));
+  markers=[];
+}
+
+function calculateAnalytics(data){
+  let total=0,target=0,gap=0;
+  let zona={merah:0,kuning:0,hijau:0};
+  let kec={};
+
+  data.forEach(r=>{
+    total+=Number(r.Suara_PKS||0);
+    target+=Number(r.Target_PKS_2029||0);
+    gap+=Number(r.Gap_Menuju_Juara_2029||0);
+
+    let z=(r.Zona||"").toLowerCase();
+    if(zona[z]!=undefined) zona[z]++;
+
+    kec[r.kecamatan]=(kec[r.kecamatan]||0)+Number(r.Suara_PKS||0);
+  });
+
+  totalSuara.innerText=total;
+  totalTarget.innerText=target;
+  totalGap.innerText=gap;
+
+  new Chart(chartZona,{
+    type:"pie",
+    data:{
+      labels:["Merah","Kuning","Hijau"],
+      datasets:[{data:[zona.merah,zona.kuning,zona.hijau],
+      backgroundColor:["red","orange","green"]}]
+    }
+  });
+
+  new Chart(chartKecamatan,{
+    type:"bar",
+    data:{
+      labels:Object.keys(kec),
+      datasets:[{label:"PKS",data:Object.values(kec)}]
+    }
+  });
+}
+
+// LEVEL 1
+function showKecamatan(){
+  level="kecamatan";
+  clearMarkers();
+
+  let group={};
+
+  allData.forEach(r=>{
+    let k=r.kecamatan;
+    if(!group[k]){
+      group[k]={total:0,lat:parseFloat(r.latitude),lng:parseFloat(r.longitude)};
+    }
+    group[k].total+=Number(r.Suara_PKS||0);
+  });
+
+  for(let k in group){
+    let g=group[k];
+
+    let m=new google.maps.Marker({
+      position:{lat:g.lat,lng:g.lng},
+      map:map,
+      label:"K"
+    });
+
+    m.addListener("click",()=>{
+      currentKec=k;
+      showDesa(k);
+    });
+
+    markers.push(m);
+  }
+}
+
+// LEVEL 2
+function showDesa(kec){
+  level="desa";
+  clearMarkers();
+
+  let data=allData.filter(d=>d.kecamatan===kec);
+  let group={};
+
+  data.forEach(r=>{
+    let d=r.desa;
+    if(!group[d]){
+      group[d]={total:0,lat:parseFloat(r.latitude),lng:parseFloat(r.longitude)};
+    }
+    group[d].total+=Number(r.Suara_PKS||0);
+  });
+
+  for(let d in group){
+    let g=group[d];
+
+    let m=new google.maps.Marker({
+      position:{lat:g.lat,lng:g.lng},
+      map:map,
+      label:"D"
+    });
+
+    m.addListener("click",()=>{
+      currentDesa=d;
+      showTPS(kec,d);
+    });
+
+    markers.push(m);
+  }
+}
+
+// LEVEL 3
+function showTPS(kec,desa){
+  level="tps";
+  clearMarkers();
+
+  let data=allData.filter(d=>d.kecamatan===kec && d.desa===desa);
+
+  data.forEach(r=>{
+    let m=new google.maps.Marker({
+      position:{lat:parseFloat(r.latitude),lng:parseFloat(r.longitude)},
+      map:map
+    });
+
+    let html="<div style='font-size:12px'>";
+    for(let key in r){
+      html+="<b>"+key+":</b> "+r[key]+"<br>";
+    }
+    html+="</div>";
+
+    let inf=new google.maps.InfoWindow({content:html});
+    m.addListener("click",()=>inf.open(map,m));
+
+    markers.push(m);
+  });
+}
+
+function back(){
+  if(level==="tps") showDesa(currentKec);
+  else if(level==="desa") showKecamatan();
+}
+
+window.onload=initMap;
 </script>
 
 </body>
 </html>
-
